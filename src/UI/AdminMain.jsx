@@ -1,12 +1,7 @@
 import React, { useState } from 'react';
 
-const AdminMain = ({ username }) => {
+const AdminMain = ({ username, onLogout }) => {
   const [activeTab, setActiveTab] = useState('students');
-
-  const handleLogout = () => {
-    localStorage.removeItem('loggedInUser');
-    window.location.href = '/logout'; // You can route to a logout page or reload
-  };
 
   return (
     <div className="container mt-4 px-2 px-md-4">
@@ -16,7 +11,7 @@ const AdminMain = ({ username }) => {
           <div className="text-muted small">Logged in as <b>{username}</b></div>
         </div>
         <div className="col-auto text-center text-md-end">
-          <button className="btn btn-outline-danger fw-bold px-4 py-2 w-100 w-md-auto" onClick={handleLogout}>Log Out</button>
+          <button className="btn btn-outline-danger fw-bold px-4 py-2 w-100 w-md-auto" onClick={onLogout}>Log Out</button>
         </div>
       </div>
       <ul className="nav nav-tabs mb-4 flex-nowrap overflow-auto">
