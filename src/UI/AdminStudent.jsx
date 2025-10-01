@@ -53,7 +53,13 @@ const AdminStudent = () => {
       let date = '', time = '';
       if (selectedStudent.time) {
         const [d, t] = selectedStudent.time.split(' ');
-        date = d || '';
+        // Convert YYYY.MM.DD to YYYY-MM-DD for input type="date"
+        if (d && d.includes('.')) {
+          const [y, m, day] = d.split('.');
+          date = `${y}-${m.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        } else {
+          date = d || '';
+        }
         time = t || '';
       }
       setEditData({
@@ -91,8 +97,13 @@ const AdminStudent = () => {
 
   const handleSave = async () => {
     if (!selectedStudent) return;
-    // Combine date and time fields
-    const combinedTime = `${editData.date} ${editData.time}`.trim();
+    // Convert date back to YYYY.MM.DD for storage
+    let dateForSave = editData.date;
+    if (dateForSave && dateForSave.includes('-')) {
+      const [y, m, d] = dateForSave.split('-');
+      dateForSave = `${y}.${m}.${d}`;
+    }
+    const combinedTime = `${dateForSave} ${editData.time}`.trim();
     const oldUsername = selectedStudent.username;
     const newUsername = editData.username;
     const newData = {
@@ -138,9 +149,6 @@ const AdminStudent = () => {
                     <Card.Title className="mb-0 fs-5 fw-bold text-primary">{student.username}</Card.Title>
                     <div className="small text-secondary">Student ID</div>
                   </div>
-                  <div className="ms-auto">
-                    <span className="badge rounded-pill bg-light text-dark border border-1 small shadow-sm">#{idx + 1}</span>
-                  </div>
                 </div>
                 <Card.Body className="pt-2 pb-4 position-relative">
                   <div className="mb-2">
@@ -185,7 +193,7 @@ const AdminStudent = () => {
               <Form.Group className="mb-3" controlId="editDate">
                 <Form.Label>Date</Form.Label>
                 <Form.Control
-                  type="text"
+                  type="date"
                   value={editData.date}
                   onChange={e => setEditData(ed => ({ ...ed, date: e.target.value }))}
                   placeholder="YYYY.MM.DD"
@@ -194,7 +202,7 @@ const AdminStudent = () => {
               <Form.Group className="mb-3" controlId="editTime">
                 <Form.Label>Time</Form.Label>
                 <Form.Control
-                  type="text"
+                  type="time"
                   value={editData.time}
                   onChange={e => setEditData(ed => ({ ...ed, time: e.target.value }))}
                   placeholder="HH:mm"
