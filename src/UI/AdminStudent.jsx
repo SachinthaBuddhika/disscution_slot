@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase';
 import { ref, get } from 'firebase/database';
-import { Card, Spinner } from 'react-bootstrap';
+import { Card, Spinner, Modal, Button, Form } from 'react-bootstrap';
 
 function formatDateTime(dateTimeStr) {
   // Input: "2025.10.02 13:00"
@@ -17,9 +17,13 @@ function formatDateTime(dateTimeStr) {
   return { raw: iso, formatted };
 }
 
+
 const AdminStudent = () => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [editData, setEditData] = useState({ username: '', date: '', time: '', canLogin: false });
 
   useEffect(() => {
     const fetchStudents = async () => {
@@ -42,54 +46,154 @@ const AdminStudent = () => {
     fetchStudents();
   }, []);
 
+  // When modal opens, sync editData with selectedStudent
+  useEffect(() => {
+    if (showModal && selectedStudent) {
+      // Split time string into date and time fields
+      let date = '', time = '';
+      if (selectedStudent.time) {
+        const [d, t] = selectedStudent.time.split(' ');
+        date = d || '';
+        time = t || '';
+      }
+      setEditData({
+        username: selectedStudent.username || '',
+        date,
+        time,
+        canLogin: !!selectedStudent.canLogin
+      });
+    }
+  }, [showModal, selectedStudent]);
+
   if (loading) {
     return <div className="text-center py-5"><Spinner animation="border" /> Loading students...</div>;
   }
 
+  // Save handler
+  const handleSave = async () => {
+    if (!selectedStudent) return;
+    // Combine date and time fields
+    const combinedTime = `${editData.date} ${editData.time}`.trim();
+    // Update in Firebase
+    const studentRef = ref(db, `01/Student/${selectedStudent.username}`);
+    await studentRef.set({
+      username: editData.username,
+      time: combinedTime,
+      canLogin: editData.canLogin
+    });
+    // Update local state
+    setStudents((prev) => prev.map(s =>
+      s.username === selectedStudent.username
+        ? { ...editData, time: combinedTime }
+        : s
+    ));
+    setShowModal(false);
+  };
+
   return (
-    <div className="row g-4">
-      {students.map((student, idx) => {
-        const { raw, formatted } = formatDateTime(student.time);
-        return (
-          <div className="col-12 col-md-6 col-lg-4" key={student.username || idx}>
-            <Card className="shadow-lg border-0 h-100 student-card position-relative overflow-hidden p-2">
-              <div className="d-flex align-items-center mb-3">
-                <div style={{ position: 'relative', width: 56, height: 56 }}>
-                  <div className="rounded-circle bg-primary bg-gradient text-white d-flex align-items-center justify-content-center" style={{ width: 56, height: 56, fontSize: 26, fontWeight: 600, boxShadow: '0 2px 8px #0d6efd33' }}>
-                    {student.username?.slice(-3) || '?'}
+    <>
+      <div className="row g-4">
+        {students.map((student, idx) => {
+          const { raw, formatted } = formatDateTime(student.time);
+          return (
+            <div className="col-12 col-md-6 col-lg-4" key={student.username || idx}>
+              <Card className="shadow-lg border-0 h-100 student-card position-relative overflow-hidden p-2">
+                <div className="d-flex align-items-center mb-3">
+                  <div style={{ position: 'relative', width: 56, height: 56 }}>
+                    <div className="rounded-circle bg-primary bg-gradient text-white d-flex align-items-center justify-content-center" style={{ width: 56, height: 56, fontSize: 26, fontWeight: 600, boxShadow: '0 2px 8px #0d6efd33' }}>
+                      {student.username?.slice(-3) || '?'}
+                    </div>
+                    <button type="button" className="btn btn-light btn-sm p-1 position-absolute top-0 end-0 translate-middle rounded-circle border shadow" style={{ right: '-8px', top: '-8px', zIndex: 2 }} title="Edit Student" onClick={() => { setSelectedStudent(student); setShowModal(true); }}>
+                      <i className="bi bi-pencil-square text-primary" style={{ fontSize: 16 }}></i>
+                    </button>
                   </div>
-                  <button type="button" className="btn btn-light btn-sm p-1 position-absolute top-0 end-0 translate-middle rounded-circle border shadow" style={{ right: '-8px', top: '-8px', zIndex: 2 }} title="Edit Student">
-                    <i className="bi bi-pencil-square text-primary" style={{ fontSize: 16 }}></i>
+                  <div className="ms-3 flex-grow-1">
+                    <Card.Title className="mb-0 fs-5 fw-bold text-primary">{student.username}</Card.Title>
+                    <div className="small text-secondary">Student ID</div>
+                  </div>
+                  <div className="ms-auto">
+                    <span className="badge rounded-pill bg-light text-dark border border-1 small shadow-sm">#{idx + 1}</span>
+                  </div>
+                </div>
+                <Card.Body className="pt-2 pb-4 position-relative">
+                  <div className="mb-2">
+                    <span className="fw-semibold text-secondary me-1">Time:</span>
+                    <span className="bi bi-calendar-event text-info me-1"></span>
+                    <span title={raw}>{formatted}</span>
+                  </div>
+                  <div>
+                    <span className="fw-semibold text-secondary me-1">Can Login:</span>
+                    <span className={`bi ${student.canLogin ? 'bi-unlock text-success' : 'bi-lock text-danger'} me-1`}></span>
+                    <span className={student.canLogin ? 'text-success' : 'text-danger'}>{student.canLogin ? 'Yes' : 'No'}</span>
+                  </div>
+                  <button type="button" className="btn btn-outline-primary btn-sm position-absolute end-0 bottom-0 m-3 d-flex align-items-center gap-1" title="Edit Student" onClick={() => { setSelectedStudent(student); setShowModal(true); }}>
+                    <i className="bi bi-pencil-square"></i> Edit
                   </button>
-                </div>
-                <div className="ms-3 flex-grow-1">
-                  <Card.Title className="mb-0 fs-5 fw-bold text-primary">{student.username}</Card.Title>
-                  <div className="small text-secondary">Student ID</div>
-                </div>
-              </div>
-              <Card.Body className="pt-2 pb-4 position-relative">
-                <div className="mb-2">
-                  <span className="fw-semibold text-secondary me-1">Time:</span>
-                  <span className="bi bi-calendar-event text-info me-1"></span>
-                  <span title={raw}>{formatted}</span>
-                </div>
-                <div>
-                  <span className="fw-semibold text-secondary me-1">Can Login:</span>
-                  <span className={`bi ${student.canLogin ? 'bi-unlock text-success' : 'bi-lock text-danger'} me-1`}></span>
-                  <span className={student.canLogin ? 'text-success' : 'text-danger'}>{student.canLogin ? 'Yes' : 'No'}</span>
-                </div>
-                <button type="button" className="btn btn-outline-primary btn-sm position-absolute end-0 bottom-0 m-3 d-flex align-items-center gap-1" title="Edit Student">
-                  <i className="bi bi-pencil-square"></i> Edit
-                </button>
-              </Card.Body>
-            </Card>
-          </div>
-        );
-      })}
-      {students.length === 0 && (
-        <div className="col-12 text-center text-muted">No students found.</div>
-      )}
-    </div>
+                </Card.Body>
+              </Card>
+            </div>
+          );
+        })}
+        {students.length === 0 && (
+          <div className="col-12 text-center text-muted">No students found.</div>
+        )}
+      </div>
+
+      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Edit Student</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedStudent ? (
+            <Form>
+              <Form.Group className="mb-3" controlId="editUsername">
+                <Form.Label>Username</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={editData.username}
+                  onChange={e => setEditData(ed => ({ ...ed, username: e.target.value }))}
+                  autoFocus
+                />
+              </Form.Group>
+              <Form.Group className="mb-3" controlId="editDate">
+                <Form.Label>Date</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={editData.date}
+                  onChange={e => setEditData(ed => ({ ...ed, date: e.target.value }))}
+                  placeholder="YYYY.MM.DD"
+                />
+              </Form.Group>
+              <Form.Group className="mb-3" controlId="editTime">
+                <Form.Label>Time</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={editData.time}
+                  onChange={e => setEditData(ed => ({ ...ed, time: e.target.value }))}
+                  placeholder="HH:mm"
+                />
+              </Form.Group>
+              <Form.Group className="mb-3" controlId="editCanLogin">
+                <Form.Check
+                  type="checkbox"
+                  label="Can Login"
+                  checked={editData.canLogin}
+                  onChange={e => setEditData(ed => ({ ...ed, canLogin: e.target.checked }))}
+                />
+              </Form.Group>
+            </Form>
+          ) : null}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowModal(false)}>
+            Close
+          </Button>
+          <Button variant="primary" onClick={handleSave} disabled={!editData.username}>
+            Save
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </>
   );
 };
 
