@@ -31,7 +31,7 @@ function App() {
             localStorage.setItem('role', 'admin');
             setStatusMessage({ text: 'Welcome, Admin!', type: 'success' });
             setLoading(false);
-            navigate('/admin');
+            navigate('/disscution_slot/admin');
             return;
           }
         }
@@ -61,12 +61,12 @@ function App() {
           !loggedInUser ? (
             <Login onLogin={handleLogin} statusMessage={statusMessage} loading={loading} />
           ) : (
-            <Navigate to="/admin" replace />
+            <Navigate to="/disscution_slot/admin" replace />
           )
         }
       />
       <Route
-        path="/admin"
+        path="/disscution_slot/admin"
         element={
           loggedInUser ? (
             <AdminMain username={loggedInUser} onLogout={handleLogout} />
