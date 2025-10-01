@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase';
-import { ref, get } from 'firebase/database';
+import { ref, get, set, remove } from 'firebase/database';
 import { Card, Spinner, Modal, Button, Form } from 'react-bootstrap';
 
 function formatDateTime(dateTimeStr) {
@@ -70,24 +70,51 @@ const AdminStudent = () => {
   }
 
   // Save handler
+  // Helper to reload students from DB
+  const reloadStudents = async () => {
+    setLoading(true);
+    const studentRef = ref(db, '01/Student');
+    const snap = await get(studentRef);
+    if (snap.exists()) {
+      const data = snap.val();
+      const studentList = Object.values(data).map((s) => ({
+        username: s.username,
+        time: s.time,
+        canLogin: s.canLogin
+      }));
+      setStudents(studentList);
+    } else {
+      setStudents([]);
+    }
+    setLoading(false);
+  };
+
   const handleSave = async () => {
     if (!selectedStudent) return;
     // Combine date and time fields
     const combinedTime = `${editData.date} ${editData.time}`.trim();
-    // Update in Firebase
-    const studentRef = ref(db, `01/Student/${selectedStudent.username}`);
-    await studentRef.set({
-      username: editData.username,
+    const oldUsername = selectedStudent.username;
+    const newUsername = editData.username;
+    const newData = {
+      username: newUsername,
       time: combinedTime,
       canLogin: editData.canLogin
-    });
-    // Update local state
-    setStudents((prev) => prev.map(s =>
-      s.username === selectedStudent.username
-        ? { ...editData, time: combinedTime }
-        : s
-    ));
+    };
+    if (oldUsername !== newUsername) {
+      // Remove old, then set new
+      const oldRef = ref(db, `01/Student/${oldUsername}`);
+      await remove(oldRef);
+      const newRef = ref(db, `01/Student/${newUsername}`);
+      await set(newRef, newData);
+    } else {
+      // Just update
+      const refToUpdate = ref(db, `01/Student/${oldUsername}`);
+      await set(refToUpdate, newData);
+    }
+    // Reload from DB to ensure UI is up to date
+    await reloadStudents();
     setShowModal(false);
+    setSelectedStudent(null);
   };
 
   return (
@@ -151,7 +178,7 @@ const AdminStudent = () => {
                 <Form.Control
                   type="text"
                   value={editData.username}
-                  onChange={e => setEditData(ed => ({ ...ed, username: e.target.value }))}
+                  disabled
                   autoFocus
                 />
               </Form.Group>
