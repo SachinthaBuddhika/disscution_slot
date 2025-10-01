@@ -28,7 +28,7 @@ const Login = ({ onLogin, statusMessage, loading }) => {
                 placeholder="STUDENT ID (E.G., 247001)"
                 value={studentId}
                 onChange={e => setStudentId(e.target.value)}
-                className="text-uppercase fw-semibold py-3"
+                className=" fw-semibold py-3"
                 required
                 disabled={loading}
                 autoFocus
