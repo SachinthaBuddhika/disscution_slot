@@ -24,6 +24,7 @@ const AdminStudent = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [editData, setEditData] = useState({ username: '', date: '', time: '', canLogin: false });
+  const [isAddMode, setIsAddMode] = useState(false);
 
   useEffect(() => {
     const fetchStudents = async () => {
@@ -48,28 +49,33 @@ const AdminStudent = () => {
 
   // When modal opens, sync editData with selectedStudent
   useEffect(() => {
-    if (showModal && selectedStudent) {
-      // Split time string into date and time fields
-      let date = '', time = '';
-      if (selectedStudent.time) {
-        const [d, t] = selectedStudent.time.split(' ');
-        // Convert YYYY.MM.DD to YYYY-MM-DD for input type="date"
-        if (d && d.includes('.')) {
-          const [y, m, day] = d.split('.');
-          date = `${y}-${m.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        } else {
-          date = d || '';
+    if (showModal) {
+      if (isAddMode) {
+        setEditData({ username: '', date: '2025-01-01', time: '00:00', canLogin: false });
+        setSelectedStudent(null);
+      } else if (selectedStudent) {
+        // Split time string into date and time fields
+        let date = '', time = '';
+        if (selectedStudent.time) {
+          const [d, t] = selectedStudent.time.split(' ');
+          // Convert YYYY.MM.DD to YYYY-MM-DD for input type="date"
+          if (d && d.includes('.')) {
+            const [y, m, day] = d.split('.');
+            date = `${y}-${m.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          } else {
+            date = d || '';
+          }
+          time = t || '';
         }
-        time = t || '';
+        setEditData({
+          username: selectedStudent.username || '',
+          date,
+          time,
+          canLogin: !!selectedStudent.canLogin
+        });
       }
-      setEditData({
-        username: selectedStudent.username || '',
-        date,
-        time,
-        canLogin: !!selectedStudent.canLogin
-      });
     }
-  }, [showModal, selectedStudent]);
+  }, [showModal, selectedStudent, isAddMode]);
 
   if (loading) {
     return <div className="text-center py-5"><Spinner animation="border" /> Loading students...</div>;
@@ -96,7 +102,6 @@ const AdminStudent = () => {
   };
 
   const handleSave = async () => {
-    if (!selectedStudent) return;
     // Convert date back to YYYY.MM.DD for storage
     let dateForSave = editData.date;
     if (dateForSave && dateForSave.includes('-')) {
@@ -104,32 +109,45 @@ const AdminStudent = () => {
       dateForSave = `${y}.${m}.${d}`;
     }
     const combinedTime = `${dateForSave} ${editData.time}`.trim();
-    const oldUsername = selectedStudent.username;
-    const newUsername = editData.username;
     const newData = {
-      username: newUsername,
+      username: editData.username,
       time: combinedTime,
       canLogin: editData.canLogin
     };
-    if (oldUsername !== newUsername) {
-      // Remove old, then set new
-      const oldRef = ref(db, `01/Student/${oldUsername}`);
-      await remove(oldRef);
-      const newRef = ref(db, `01/Student/${newUsername}`);
+    if (isAddMode) {
+      // Add new student
+      const newRef = ref(db, `01/Student/${editData.username}`);
       await set(newRef, newData);
     } else {
-      // Just update
-      const refToUpdate = ref(db, `01/Student/${oldUsername}`);
-      await set(refToUpdate, newData);
+      if (!selectedStudent) return;
+      const oldUsername = selectedStudent.username;
+      const newUsername = editData.username;
+      if (oldUsername !== newUsername) {
+        // Remove old, then set new
+        const oldRef = ref(db, `01/Student/${oldUsername}`);
+        await remove(oldRef);
+        const newRef = ref(db, `01/Student/${newUsername}`);
+        await set(newRef, newData);
+      } else {
+        // Just update
+        const refToUpdate = ref(db, `01/Student/${oldUsername}`);
+        await set(refToUpdate, newData);
+      }
     }
     // Reload from DB to ensure UI is up to date
     await reloadStudents();
     setShowModal(false);
     setSelectedStudent(null);
+    setIsAddMode(false);
   };
 
   return (
     <>
+      <div className="d-flex justify-content-end mb-3">
+        <Button variant="success" onClick={() => { setShowModal(true); setIsAddMode(true); }}>
+          + Add Student
+        </Button>
+      </div>
       <div className="row g-4">
         {students.map((student, idx) => {
           const { raw, formatted } = formatDateTime(student.time);
@@ -174,53 +192,56 @@ const AdminStudent = () => {
         )}
       </div>
 
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+      <Modal show={showModal} onHide={() => { setShowModal(false); setIsAddMode(false); }} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Edit Student</Modal.Title>
+          <Modal.Title>{isAddMode ? 'Add Student' : 'Edit Student'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {selectedStudent ? (
-            <Form>
-              <Form.Group className="mb-3" controlId="editUsername">
-                <Form.Label>Username</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={editData.username}
-                  disabled
-                  autoFocus
-                />
-              </Form.Group>
-              <Form.Group className="mb-3" controlId="editDate">
-                <Form.Label>Date</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={editData.date}
-                  onChange={e => setEditData(ed => ({ ...ed, date: e.target.value }))}
-                  placeholder="YYYY.MM.DD"
-                />
-              </Form.Group>
-              <Form.Group className="mb-3" controlId="editTime">
-                <Form.Label>Time</Form.Label>
-                <Form.Control
-                  type="time"
-                  value={editData.time}
-                  onChange={e => setEditData(ed => ({ ...ed, time: e.target.value }))}
-                  placeholder="HH:mm"
-                />
-              </Form.Group>
-              <Form.Group className="mb-3" controlId="editCanLogin">
-                <Form.Check
-                  type="checkbox"
-                  label="Can Login"
-                  checked={editData.canLogin}
-                  onChange={e => setEditData(ed => ({ ...ed, canLogin: e.target.checked }))}
-                />
-              </Form.Group>
-            </Form>
-          ) : null}
+          <Form>
+            <Form.Group className="mb-3" controlId="editUsername">
+              <Form.Label>Username</Form.Label>
+              <Form.Control
+                type="text"
+                value={editData.username}
+                onChange={e => setEditData(ed => ({ ...ed, username: e.target.value }))}
+                autoFocus
+                disabled={!isAddMode}
+              />
+            </Form.Group>
+            {!isAddMode && (
+              <>
+                <Form.Group className="mb-3" controlId="editDate">
+                  <Form.Label>Date</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={editData.date}
+                    onChange={e => setEditData(ed => ({ ...ed, date: e.target.value }))}
+                    placeholder="YYYY.MM.DD"
+                  />
+                </Form.Group>
+                <Form.Group className="mb-3" controlId="editTime">
+                  <Form.Label>Time</Form.Label>
+                  <Form.Control
+                    type="time"
+                    value={editData.time}
+                    onChange={e => setEditData(ed => ({ ...ed, time: e.target.value }))}
+                    placeholder="HH:mm"
+                  />
+                </Form.Group>
+              </>
+            )}
+            <Form.Group className="mb-3" controlId="editCanLogin">
+              <Form.Check
+                type="checkbox"
+                label="Can Login"
+                checked={editData.canLogin}
+                onChange={e => setEditData(ed => ({ ...ed, canLogin: e.target.checked }))}
+              />
+            </Form.Group>
+          </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
+          <Button variant="secondary" onClick={() => { setShowModal(false); setIsAddMode(false); }}>
             Close
           </Button>
           <Button variant="primary" onClick={handleSave} disabled={!editData.username}>
