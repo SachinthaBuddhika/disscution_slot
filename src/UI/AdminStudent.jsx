@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase';
 import { ref, get, set, remove } from 'firebase/database';
-import { Card, Spinner, Modal, Button, Form } from 'react-bootstrap';
+import { Card, Spinner, Modal, Button, Form, Toast, ToastContainer } from 'react-bootstrap';
 
 function formatDateTime(dateTimeStr) {
   // Input: "2025.10.02 13:00"
@@ -25,6 +25,8 @@ const AdminStudent = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [editData, setEditData] = useState({ username: '', date: '', time: '', canLogin: false });
   const [isAddMode, setIsAddMode] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
 
   useEffect(() => {
     const fetchStudents = async () => {
@@ -123,30 +125,11 @@ const AdminStudent = () => {
       const oldUsername = selectedStudent.username;
       const newUsername = editData.username;
       const oldTime = selectedStudent.time;
-      // Remove old, then set new if username changed
-      if (oldUsername !== newUsername) {
-        const oldRef = ref(db, `01/Student/${oldUsername}`);
-        await remove(oldRef);
-        const newRef = ref(db, `01/Student/${newUsername}`);
-        await set(newRef, newData);
-      } else {
-        // Just update
-        const refToUpdate = ref(db, `01/Student/${oldUsername}`);
-        await set(refToUpdate, newData);
-      }
       // --- Time slot student array update logic ---
       const timeRef = ref(db, '01/time');
       const timeSnap = await get(timeRef);
       if (timeSnap.exists()) {
         const timeData = timeSnap.val();
-        // Remove username from all time slot students arrays
-        for (const [slotKey, slotVal] of Object.entries(timeData)) {
-          const studentsArr = Array.isArray(slotVal.students) ? slotVal.students : [];
-          if (studentsArr.includes(oldUsername)) {
-            const newArr = studentsArr.filter(u => u !== oldUsername);
-            await set(ref(db, `01/time/${slotKey}/students`), newArr);
-          }
-        }
         // Find the slot key for the new time
         const matchKey = Object.keys(timeData).find(
           k => {
@@ -155,6 +138,24 @@ const AdminStudent = () => {
             return slotTime === combinedTime;
           }
         );
+        if (matchKey) {
+          const slot = timeData[matchKey];
+          let studentsArr = Array.isArray(slot.students) ? slot.students : [];
+          // Check if slot is full (limit reached and user not already in array)
+          if (!studentsArr.includes(newUsername) && studentsArr.length >= (slot.limit || 0)) {
+            setToastMsg('Time slot already full!');
+            setShowToast(true);
+            return;
+          }
+        }
+        // Remove username from all time slot students arrays
+        for (const [slotKey, slotVal] of Object.entries(timeData)) {
+          const studentsArr = Array.isArray(slotVal.students) ? slotVal.students : [];
+          if (studentsArr.includes(oldUsername)) {
+            const newArr = studentsArr.filter(u => u !== oldUsername);
+            await set(ref(db, `01/time/${slotKey}/students`), newArr);
+          }
+        }
         if (matchKey) {
           // Add username to the new slot's students array (create if missing)
           const slot = timeData[matchKey];
@@ -170,6 +171,17 @@ const AdminStudent = () => {
           // const key = `${dt.getFullYear()}_${pad(dt.getMonth() + 1)}_${pad(dt.getDate())}_${pad(dt.getHours())}_${pad(dt.getMinutes())}`;
           // await set(ref(db, `01/time/${key}`), { limit: 1, reserved: 1, students: [newUsername] });
         }
+      }
+      // Remove old, then set new if username changed
+      if (oldUsername !== newUsername) {
+        const oldRef = ref(db, `01/Student/${oldUsername}`);
+        await remove(oldRef);
+        const newRef = ref(db, `01/Student/${newUsername}`);
+        await set(newRef, newData);
+      } else {
+        // Just update
+        const refToUpdate = ref(db, `01/Student/${oldUsername}`);
+        await set(refToUpdate, newData);
       }
       // --- End time slot update logic ---
     }
@@ -288,6 +300,12 @@ const AdminStudent = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <ToastContainer position="top-end" className="p-3" style={{ zIndex: 9999, position: 'fixed', top: 0, right: 0 }}>
+        <Toast show={showToast} onClose={() => setShowToast(false)} bg="danger" delay={3000} autohide>
+          <Toast.Body className="text-white">{toastMsg}</Toast.Body>
+        </Toast>
+      </ToastContainer>
     </>
   );
 };
