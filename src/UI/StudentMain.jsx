@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase';
-import { ref, get } from 'firebase/database';
+import { ref, get, set } from 'firebase/database';
+import { Modal, Button } from 'react-bootstrap';
 
 function formatTimeKey(key) {
   // Convert 2025_01_01_00_00 to 2025.01.01 00:00
@@ -18,6 +19,10 @@ function formatTimeDisplay(dateObj) {
 const StudentMain = () => {
   const username = localStorage.getItem('loggedInUser') || '';
   const [timeSlots, setTimeSlots] = useState([]);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -53,6 +58,103 @@ const StudentMain = () => {
     localStorage.removeItem('loggedInUser');
     localStorage.removeItem('role');
     window.location.href = '/disscution_slot/';
+  };
+
+  const handlePickTime = (slot) => {
+    setSelectedSlot(slot);
+    setShowConfirm(true);
+  };
+
+  const handleConfirmPick = async () => {
+    if (!selectedSlot) return;
+    // Refresh slot from DB to check latest state
+    const slotRef = ref(db, `01/time/${selectedSlot.key}`);
+    const slotSnap = await get(slotRef);
+    if (!slotSnap.exists()) {
+      setToastMsg('Time slot not found.');
+      setShowToast(true);
+      setShowConfirm(false);
+      return;
+    }
+    const slotData = slotSnap.val();
+    const studentsArr = Array.isArray(slotData.students) ? slotData.students : [];
+    if (studentsArr.length >= (slotData.limit || 0)) {
+      setToastMsg('This time slot is already filled.');
+      setShowToast(true);
+      setShowConfirm(false);
+      // Refresh time slots
+      const timeRef = ref(db, '01/time');
+      const snapshot = await get(timeRef);
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const now = new Date();
+        const slots = Object.entries(data)
+          .map(([key, value]) => {
+            const [y, m, d, h, min] = key.split('_');
+            const slotDate = new Date(`${y}-${m}-${d}T${h}:${min}`);
+            return {
+              key,
+              ...value,
+              slotDate,
+              slotTimeStr: formatTimeKey(key),
+            };
+          })
+          .filter(slot => slot.slotDate > now)
+          .sort((a, b) => a.slotDate - b.slotDate);
+        setTimeSlots(slots);
+      }
+      return;
+    }
+    // Remove user from all other slots
+    const timeRef = ref(db, '01/time');
+    const allSlotsSnap = await get(timeRef);
+    if (allSlotsSnap.exists()) {
+      const allSlots = allSlotsSnap.val();
+      for (const [key, value] of Object.entries(allSlots)) {
+        if (Array.isArray(value.students) && value.students.includes(username)) {
+          const newArr = value.students.filter(u => u !== username);
+          await set(ref(db, `01/time/${key}/students`), newArr);
+        }
+      }
+    }
+    // Add user to selected slot
+    const updatedArr = [...studentsArr, username];
+    await set(ref(db, `01/time/${selectedSlot.key}/students`), updatedArr);
+    // Update student section
+    const studentRef = ref(db, `01/Student/${username}`);
+    const studentSnap = await get(studentRef);
+    if (studentSnap.exists()) {
+      const studentData = studentSnap.val();
+      await set(studentRef, { ...studentData, time: selectedSlot.slotTimeStr });
+    }
+    setShowConfirm(false);
+    setToastMsg('Time slot picked successfully!');
+    setShowToast(true);
+    // Refresh time slots
+    const snapshot = await get(timeRef);
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      const now = new Date();
+      const slots = Object.entries(data)
+        .map(([key, value]) => {
+          const [y, m, d, h, min] = key.split('_');
+          const slotDate = new Date(`${y}-${m}-${d}T${h}:${min}`);
+          return {
+            key,
+            ...value,
+            slotDate,
+            slotTimeStr: formatTimeKey(key),
+          };
+        })
+        .filter(slot => slot.slotDate > now)
+        .sort((a, b) => a.slotDate - b.slotDate);
+      setTimeSlots(slots);
+    }
+  };
+
+  const handleCancelPick = () => {
+    setShowConfirm(false);
+    setSelectedSlot(null);
   };
 
   return (
@@ -99,7 +201,7 @@ const StudentMain = () => {
                           </span>
                         ) : null
                       ) : (
-                        <button className="btn btn-lg fw-bold px-5 py-3 shadow pick-time-btn w-100 w-sm-auto mt-2 mt-sm-0" style={{ borderRadius: 24, fontSize: 20, background: 'linear-gradient(90deg, #6366f1 60%, #818cf8 100%)', color: '#fff', border: 'none', boxShadow: '0 2px 12px #6366f155', letterSpacing: 1, transition: 'background 0.2s', minWidth: 160, whiteSpace: 'nowrap' }}>
+                        <button className="btn btn-lg fw-bold px-5 py-3 shadow pick-time-btn w-100 w-sm-auto mt-2 mt-sm-0" style={{ borderRadius: 24, fontSize: 20, background: 'linear-gradient(90deg, #6366f1 60%, #818cf8 100%)', color: '#fff', border: 'none', boxShadow: '0 2px 12px #6366f155', letterSpacing: 1, transition: 'background 0.2s', minWidth: 160, whiteSpace: 'nowrap' }} onClick={() => handlePickTime(slot)}>
                           <i className="bi bi-check-circle me-2"></i>Pick Time
                         </button>
                       )}
@@ -111,6 +213,30 @@ const StudentMain = () => {
           })}
         </div>
       )}
+      <Modal show={showConfirm} onHide={handleCancelPick} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Pick Time</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to pick this time slot?
+          <br />
+          <strong>{selectedSlot ? formatTimeDisplay(selectedSlot.slotDate) : ''}</strong>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCancelPick}>Cancel</Button>
+          <Button variant="primary" onClick={handleConfirmPick}>Confirm</Button>
+        </Modal.Footer>
+      </Modal>
+      <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999 }}>
+        {showToast && (
+          <div className={`toast show align-items-center text-white bg-${toastMsg.includes('successfully') ? 'success' : 'danger'} border-0`} role="alert" aria-live="assertive" aria-atomic="true">
+            <div className="d-flex">
+              <div className="toast-body">{toastMsg}</div>
+              <button type="button" className="btn-close btn-close-white me-2 m-auto" aria-label="Close" onClick={() => setShowToast(false)}></button>
+            </div>
+          </div>
+        )}
+      </div>
       <style>{`
         .pick-time-btn:hover {
           background: linear-gradient(90deg, #818cf8 60%, #6366f1 100%);
