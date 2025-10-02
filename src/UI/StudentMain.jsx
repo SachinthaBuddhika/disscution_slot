@@ -171,6 +171,7 @@ const StudentMain = () => {
         <div className="row justify-content-center g-3 g-md-4">
           {timeSlots.map(slot => {
             const isPicked = pickedSlotKey === slot.key;
+            const isFull = (slot.students ? slot.students.length : 0) >= slot.limit;
             return (
               <div className="col-12 col-md-10 col-lg-8 mb-4" key={slot.key}>
                 <div className="card shadow-lg border-0 w-100 position-relative" style={{ borderRadius: 28, background: 'linear-gradient(120deg, #e0e7ff 60%, #f8fafc 100%)', boxShadow: '0 6px 32px #6366f122', overflow: 'hidden', border: '2px solid #6366f1', minWidth: 0 }}>
@@ -201,9 +202,11 @@ const StudentMain = () => {
                           </span>
                         ) : null
                       ) : (
-                        <button className="btn btn-lg fw-bold px-5 py-3 shadow pick-time-btn w-100 w-sm-auto mt-2 mt-sm-0" style={{ borderRadius: 24, fontSize: 20, background: 'linear-gradient(90deg, #6366f1 60%, #818cf8 100%)', color: '#fff', border: 'none', boxShadow: '0 2px 12px #6366f155', letterSpacing: 1, transition: 'background 0.2s', minWidth: 160, whiteSpace: 'nowrap' }} onClick={() => handlePickTime(slot)}>
+                        !isFull && (
+                          <button className="btn btn-lg fw-bold px-5 py-3 shadow pick-time-btn w-100 w-sm-auto mt-2 mt-sm-0" style={{ borderRadius: 24, fontSize: 20, background: 'linear-gradient(90deg, #6366f1 60%, #818cf8 100%)', color: '#fff', border: 'none', boxShadow: '0 2px 12px #6366f155', letterSpacing: 1, transition: 'background 0.2s', minWidth: 160, whiteSpace: 'nowrap' }} onClick={() => handlePickTime(slot)}>
                           <i className="bi bi-check-circle me-2"></i>Pick Time
                         </button>
+                        )
                       )}
                     </div>
                   </div>
