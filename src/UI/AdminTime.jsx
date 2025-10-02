@@ -21,6 +21,9 @@ const AdminTime = () => {
   const [showModal, setShowModal] = useState(false);
   const [editSlot, setEditSlot] = useState(null);
   const [editLimit, setEditLimit] = useState(0);
+  const [addMode, setAddMode] = useState(false);
+  const [addDateTime, setAddDateTime] = useState("");
+  const [addLimit, setAddLimit] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -39,25 +42,70 @@ const AdminTime = () => {
   }, []);
 
   const handleEditClick = (slot) => {
+    setAddMode(false);
     setEditSlot(slot);
     setEditLimit(slot.limit);
+    setShowModal(true);
+  };
+
+  const handleAddClick = () => {
+    setAddMode(true);
+    setAddDateTime("");
+    setAddLimit(0);
     setShowModal(true);
   };
 
   const handleModalClose = () => {
     setShowModal(false);
     setEditSlot(null);
+    setAddMode(false);
   };
 
   const handleLimitChange = (e) => {
     setEditLimit(e.target.value);
   };
+  const handleAddDateTimeChange = (e) => {
+    setAddDateTime(e.target.value);
+  };
+  const handleAddLimitChange = (e) => {
+    setAddLimit(e.target.value);
+  };
 
   const handleSave = async () => {
+    if (addMode) {
+      // Add new time slot to Firebase
+      if (!addDateTime || !addLimit) return;
+      // Convert date/time to key format: 2025_01_01_00_00
+      const dt = new Date(addDateTime);
+      const pad = (n) => n.toString().padStart(2, "0");
+      const key = `${dt.getFullYear()}_${pad(dt.getMonth() + 1)}_${pad(
+        dt.getDate()
+      )}_${pad(dt.getHours())}_${pad(dt.getMinutes())}`;
+      const slotRef = ref(db, `01/time/${key}`);
+      await import("firebase/database").then(({ set }) =>
+        set(slotRef, { limit: Number(addLimit), reserved: 0, students: [] })
+      );
+      // Refresh local state from DB
+      const timeRef = ref(db, "01/time");
+      const snapshot = await get(timeRef);
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const slots = Object.entries(data).map(([key, value]) => ({
+          key,
+          ...value,
+        }));
+        setTimeSlots(slots);
+      }
+      setShowModal(false);
+      setAddMode(false);
+      return;
+    }
     if (editSlot) {
       // Update in Firebase
       const slotRef = ref(db, `01/time/${editSlot.key}/limit`);
-      await import('firebase/database').then(({ set }) => set(slotRef, Number(editLimit)));
+      await import("firebase/database").then(({ set }) =>
+        set(slotRef, Number(editLimit))
+      );
       // Refresh local state from DB
       const timeRef = ref(db, "01/time");
       const snapshot = await get(timeRef);
@@ -76,6 +124,15 @@ const AdminTime = () => {
 
   return (
     <Container className="mt-4">
+      <div className="d-flex justify-content-end align-items-center mb-3">
+        <Button
+          variant="primary"
+          style={{ borderRadius: 20, fontWeight: 600, padding: "8px 28px" }}
+          onClick={handleAddClick}
+        >
+          + Add Time
+        </Button>
+      </div>
       <Row>
         {timeSlots.map((slot) => (
           <Col xs={12} key={slot.key} className="mb-4">
@@ -123,21 +180,23 @@ const AdminTime = () => {
                     title="Delete"
                   />
                 </span>
-                {/* Edit Modal */}
+                {/* Add/Edit Modal (global, not inside card loop) */}
                 <Modal show={showModal} onHide={handleModalClose} centered>
                   <Modal.Header closeButton>
-                    <Modal.Title>Edit Time Slot</Modal.Title>
+                    <Modal.Title>
+                      {addMode ? "Add Time Slot" : "Edit Time Slot"}
+                    </Modal.Title>
                   </Modal.Header>
                   <Modal.Body>
-                    {editSlot && (
+                    {addMode ? (
                       <form>
                         <div className="mb-3">
-                          <label className="form-label">Time</label>
+                          <label className="form-label">Date & Time</label>
                           <input
-                            type="text"
+                            type="datetime-local"
                             className="form-control"
-                            value={formatTimeKey(editSlot.key)}
-                            disabled
+                            value={addDateTime}
+                            onChange={handleAddDateTimeChange}
                           />
                         </div>
                         <div className="mb-3">
@@ -145,12 +204,36 @@ const AdminTime = () => {
                           <input
                             type="number"
                             className="form-control"
-                            value={editLimit}
-                            onChange={handleLimitChange}
+                            value={addLimit}
+                            onChange={handleAddLimitChange}
                             min={0}
                           />
                         </div>
                       </form>
+                    ) : (
+                      editSlot && (
+                        <form>
+                          <div className="mb-3">
+                            <label className="form-label">Time</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={formatTimeKey(editSlot.key)}
+                              disabled
+                            />
+                          </div>
+                          <div className="mb-3">
+                            <label className="form-label">Limit</label>
+                            <input
+                              type="number"
+                              className="form-control"
+                              value={editLimit}
+                              onChange={handleLimitChange}
+                              min={0}
+                            />
+                          </div>
+                        </form>
+                      )
                     )}
                   </Modal.Body>
                   <Modal.Footer>
