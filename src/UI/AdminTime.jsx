@@ -6,9 +6,11 @@ import ListGroup from "react-bootstrap/ListGroup";
 import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
-import { PencilSquare, Trash } from "react-bootstrap-icons";
+import { Download, PencilSquare, Trash } from "react-bootstrap-icons";
 import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 function formatTimeKey(key) {
   // Convert 2025_01_01_00_00 to 2025.01.01 00:00
@@ -156,6 +158,28 @@ const AdminTime = () => {
     setDeleteSlot(null);
   };
 
+  const handlePrintClick = (slot) => {
+    const doc = new jsPDF();
+    const title = `discussion ${formatTimeKey(slot.key)}`;
+    doc.setFontSize(16);
+    doc.text(title, 14, 18);
+    doc.setFontSize(12);
+    doc.text("Student List:", 14, 30);
+    const students =
+      slot.students && slot.students.length > 0
+        ? slot.students.map((s, i) => [i + 1, s])
+        : [["-", "No students"]];
+    autoTable(doc, {
+      head: [["#", "Student Number"]],
+      body: students,
+      startY: 36,
+      theme: "grid",
+      headStyles: { fillColor: [99, 102, 241] },
+      styles: { fontSize: 11 },
+    });
+    doc.save(`${title}.pdf`);
+  };
+
   return (
     <>
       <Modal show={showModal} onHide={handleModalClose} centered>
@@ -293,6 +317,12 @@ const AdminTime = () => {
                       size={22}
                       title="Edit"
                       onClick={() => handleEditClick(slot)}
+                    />
+                    <Download
+                      style={{ cursor: "pointer" }}
+                      size={22}
+                      title="Download"
+                      onClick={() => handlePrintClick(slot)}
                     />
                     <Trash
                       style={{ cursor: "pointer" }}
