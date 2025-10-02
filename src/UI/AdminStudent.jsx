@@ -122,8 +122,9 @@ const AdminStudent = () => {
       if (!selectedStudent) return;
       const oldUsername = selectedStudent.username;
       const newUsername = editData.username;
+      const oldTime = selectedStudent.time;
+      // Remove old, then set new if username changed
       if (oldUsername !== newUsername) {
-        // Remove old, then set new
         const oldRef = ref(db, `01/Student/${oldUsername}`);
         await remove(oldRef);
         const newRef = ref(db, `01/Student/${newUsername}`);
@@ -134,29 +135,28 @@ const AdminStudent = () => {
         await set(refToUpdate, newData);
       }
       // --- Time slot student array update logic ---
-      // Remove username from all time slot students arrays
       const timeRef = ref(db, '01/time');
       const timeSnap = await get(timeRef);
       if (timeSnap.exists()) {
         const timeData = timeSnap.val();
+        // Remove username from all time slot students arrays
         for (const [slotKey, slotVal] of Object.entries(timeData)) {
           const studentsArr = Array.isArray(slotVal.students) ? slotVal.students : [];
           if (studentsArr.includes(oldUsername)) {
-            // Remove oldUsername from this slot
             const newArr = studentsArr.filter(u => u !== oldUsername);
             await set(ref(db, `01/time/${slotKey}/students`), newArr);
           }
         }
-        // Now, add username to the correct slot if it matches
+        // Find the slot key for the new time
         const matchKey = Object.keys(timeData).find(
           k => {
-            // Convert slotKey to time string
             const [y, m, d, h, min] = k.split('_');
             const slotTime = `${y}.${m}.${d} ${h}:${min}`;
             return slotTime === combinedTime;
           }
         );
         if (matchKey) {
+          // Add username to the new slot's students array (create if missing)
           const slot = timeData[matchKey];
           let studentsArr = Array.isArray(slot.students) ? slot.students : [];
           if (!studentsArr.includes(newUsername)) {
