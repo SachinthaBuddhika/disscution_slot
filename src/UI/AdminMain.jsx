@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import AdminStudent from './AdminStudent.jsx';
+import AdminTime from './AdminTime.jsx';
 
 const AdminMain = ({ username, onLogout }) => {
   const [activeTab, setActiveTab] = useState('students');
@@ -37,8 +38,7 @@ const AdminMain = ({ username, onLogout }) => {
         {activeTab === 'timeslots' && (
           <div>
             {/* Time slots content goes here */}
-            <h4 className="fs-5">Time Slots Section</h4>
-            <p className="mb-0">Manage or view time slots here.</p>
+            <AdminTime />
           </div>
         )}
       </div>
