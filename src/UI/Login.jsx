@@ -1,13 +1,42 @@
 import React, { useState } from 'react';
-import { Form, Button, Card, Alert, Container } from 'react-bootstrap';
+import { Form, Button, Card, Alert, Container, Toast, ToastContainer } from 'react-bootstrap';
+import { get, ref } from 'firebase/database';
+import { db } from '../firebase';
 
 const Login = ({ onLogin, statusMessage, loading }) => {
   const [studentId, setStudentId] = useState('');
   const [password, setPassword] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onLogin(studentId, password);
+    if (!studentId) return;
+    if (!password) {
+      // Student login: check canLogin in DB
+      const studentRef = ref(db, `01/Student/${studentId}`);
+      const snap = await get(studentRef);
+      if (snap.exists()) {
+        const data = snap.val();
+        if (data.canLogin) {
+          localStorage.setItem('username', studentId);
+          localStorage.setItem('role', 'student');
+          onLogin(studentId, '');
+          return;
+        } else {
+          setToastMsg('You do not have access.');
+          setShowToast(true);
+          return;
+        }
+      } else {
+        setToastMsg('You do not have access.');
+        setShowToast(true);
+        return;
+      }
+    } else {
+      // Admin login flow
+      onLogin(studentId, password);
+    }
   };
 
   return (
@@ -15,7 +44,7 @@ const Login = ({ onLogin, statusMessage, loading }) => {
       <Card style={{ minWidth: 380, maxWidth: 420 }} className="shadow-lg p-4 rounded-4">
         <Card.Body>
           <h2 className="text-center mb-4 fw-bold text-primary">Discussion Sign-In</h2>
-          <p className="text-center text-muted mb-4">Enter your <b>Student ID</b> and password (if admin) to access the view.</p>
+          <p className="text-center text-muted mb-4">Enter your <b>Student ID</b> to access the view.</p>
           {statusMessage?.text && (
             <Alert variant={statusMessage.type === 'error' ? 'danger' : statusMessage.type === 'success' ? 'success' : 'info'} className="text-center">
               {statusMessage.text}
@@ -53,6 +82,11 @@ const Login = ({ onLogin, statusMessage, loading }) => {
           </div>
         </Card.Body>
       </Card>
+      <ToastContainer position="top-end" className="p-3" style={{ zIndex: 9999, position: 'fixed', top: 0, right: 0 }}>
+        <Toast show={showToast} onClose={() => setShowToast(false)} bg="danger" delay={3000} autohide>
+          <Toast.Body className="text-white">{toastMsg}</Toast.Body>
+        </Toast>
+      </ToastContainer>
     </Container>
   );
 };

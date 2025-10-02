@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import Login from './UI/Login';
 import AdminMain from './UI/AdminMain';
 import { db } from './firebase';
 import { ref, get } from 'firebase/database';
+import StudentMain from './UI/StudentMain';
 
 function App() {
   const [statusMessage, setStatusMessage] = useState({ text: '', type: '' });
   const [loading, setLoading] = useState(false);
   const [loggedInUser, setLoggedInUser] = useState(localStorage.getItem('loggedInUser') || '');
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Login handler for admin using Realtime Database
   const handleLogin = async (username, password) => {
@@ -36,6 +38,26 @@ function App() {
           }
         }
         setStatusMessage({ text: 'Invalid credentials. Please try again.', type: 'error' });
+      } else if (username && !password) {
+        // Student login
+        const studentRef = ref(db, `01/Student/${username}`);
+        const snap = await get(studentRef);
+        if (snap.exists()) {
+          const data = snap.val();
+          if (data.canLogin) {
+            setLoggedInUser(username);
+            localStorage.setItem('loggedInUser', username);
+            localStorage.setItem('role', 'student');
+            setStatusMessage({ text: 'Welcome!', type: 'success' });
+            setLoading(false);
+            navigate('/disscution_slot/student');
+            return;
+          } else {
+            setStatusMessage({ text: 'You do not have access.', type: 'error' });
+          }
+        } else {
+          setStatusMessage({ text: 'You do not have access.', type: 'error' });
+        }
       } else {
         setStatusMessage({ text: 'Please enter both username and password.', type: 'error' });
       }
@@ -58,18 +80,24 @@ function App() {
       <Route
         path="/disscution_slot/"
         element={
-          !loggedInUser ? (
-            <Login onLogin={handleLogin} statusMessage={statusMessage} loading={loading} />
-          ) : (
-            <Navigate to="/disscution_slot/admin" replace />
-          )
+          <Login onLogin={handleLogin} statusMessage={statusMessage} loading={loading} />
         }
       />
       <Route
         path="/disscution_slot/admin"
         element={
-          loggedInUser ? (
+          loggedInUser && localStorage.getItem('role') === 'admin' ? (
             <AdminMain username={loggedInUser} onLogout={handleLogout} />
+          ) : (
+            <Navigate to="/disscution_slot/" replace />
+          )
+        }
+      />
+      <Route
+        path="/disscution_slot/student"
+        element={
+          loggedInUser && localStorage.getItem('role') === 'student' ? (
+            <StudentMain />
           ) : (
             <Navigate to="/disscution_slot/" replace />
           )
