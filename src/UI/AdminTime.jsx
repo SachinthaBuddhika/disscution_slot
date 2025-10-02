@@ -7,6 +7,8 @@ import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import { PencilSquare, Trash } from "react-bootstrap-icons";
+import Modal from "react-bootstrap/Modal";
+import Button from "react-bootstrap/Button";
 
 function formatTimeKey(key) {
   // Convert 2025_01_01_00_00 to 2025.01.01 00:00
@@ -16,6 +18,9 @@ function formatTimeKey(key) {
 
 const AdminTime = () => {
   const [timeSlots, setTimeSlots] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [editSlot, setEditSlot] = useState(null);
+  const [editLimit, setEditLimit] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -33,32 +38,130 @@ const AdminTime = () => {
     fetchData();
   }, []);
 
+  const handleEditClick = (slot) => {
+    setEditSlot(slot);
+    setEditLimit(slot.limit);
+    setShowModal(true);
+  };
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    setEditSlot(null);
+  };
+
+  const handleLimitChange = (e) => {
+    setEditLimit(e.target.value);
+  };
+
+  const handleSave = async () => {
+    if (editSlot) {
+      // Update in Firebase
+      const slotRef = ref(db, `01/time/${editSlot.key}/limit`);
+      await import('firebase/database').then(({ set }) => set(slotRef, Number(editLimit)));
+      // Refresh local state from DB
+      const timeRef = ref(db, "01/time");
+      const snapshot = await get(timeRef);
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const slots = Object.entries(data).map(([key, value]) => ({
+          key,
+          ...value,
+        }));
+        setTimeSlots(slots);
+      }
+    }
+    setShowModal(false);
+    setEditSlot(null);
+  };
+
   return (
     <Container className="mt-4">
       <Row>
         {timeSlots.map((slot) => (
           <Col xs={12} key={slot.key} className="mb-4">
-            <Card className="w-100 shadow-lg position-relative border-0" style={{ borderRadius: 18, background: 'linear-gradient(135deg, #f8fafc 70%, #e0e7ff 100%)' }}>
+            <Card
+              className="w-100 shadow-lg position-relative border-0"
+              style={{
+                borderRadius: 18,
+                background:
+                  "linear-gradient(135deg, #f8fafc 70%, #e0e7ff 100%)",
+              }}
+            >
               {/* Card header with time and icons */}
-              <div style={{
-                background: 'linear-gradient(90deg, #6366f1 60%, #818cf8 100%)',
-                color: 'white',
-                borderTopLeftRadius: 18,
-                borderTopRightRadius: 18,
-                padding: '16px 24px 12px 24px',
-                position: 'relative',
-                minHeight: 56,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}>
-                <span style={{ fontWeight: 600, fontSize: 20, letterSpacing: 1 }}>
+              <div
+                style={{
+                  background:
+                    "linear-gradient(90deg, #6366f1 60%, #818cf8 100%)",
+                  color: "white",
+                  borderTopLeftRadius: 18,
+                  borderTopRightRadius: 18,
+                  padding: "16px 24px 12px 24px",
+                  position: "relative",
+                  minHeight: 56,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span
+                  style={{ fontWeight: 600, fontSize: 20, letterSpacing: 1 }}
+                >
                   Time: {formatTimeKey(slot.key)}
                 </span>
-                <span style={{ display: 'flex', flexDirection: 'row', gap: 40 }}>
-                  <PencilSquare style={{ cursor: 'pointer' }} size={22} title="Edit" />
-                  <Trash style={{ cursor: 'pointer' }} size={22} title="Delete" />
+                <span
+                  style={{ display: "flex", flexDirection: "row", gap: 40 }}
+                >
+                  <PencilSquare
+                    style={{ cursor: "pointer" }}
+                    size={22}
+                    title="Edit"
+                    onClick={() => handleEditClick(slot)}
+                  />
+                  <Trash
+                    style={{ cursor: "pointer" }}
+                    size={22}
+                    title="Delete"
+                  />
                 </span>
+                {/* Edit Modal */}
+                <Modal show={showModal} onHide={handleModalClose} centered>
+                  <Modal.Header closeButton>
+                    <Modal.Title>Edit Time Slot</Modal.Title>
+                  </Modal.Header>
+                  <Modal.Body>
+                    {editSlot && (
+                      <form>
+                        <div className="mb-3">
+                          <label className="form-label">Time</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={formatTimeKey(editSlot.key)}
+                            disabled
+                          />
+                        </div>
+                        <div className="mb-3">
+                          <label className="form-label">Limit</label>
+                          <input
+                            type="number"
+                            className="form-control"
+                            value={editLimit}
+                            onChange={handleLimitChange}
+                            min={0}
+                          />
+                        </div>
+                      </form>
+                    )}
+                  </Modal.Body>
+                  <Modal.Footer>
+                    <Button variant="secondary" onClick={handleModalClose}>
+                      Cancel
+                    </Button>
+                    <Button variant="primary" onClick={handleSave}>
+                      Save
+                    </Button>
+                  </Modal.Footer>
+                </Modal>
               </div>
               <Card.Body style={{ padding: "20px 24px 16px 24px" }}>
                 <div
