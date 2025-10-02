@@ -24,6 +24,8 @@ const AdminTime = () => {
   const [addMode, setAddMode] = useState(false);
   const [addDateTime, setAddDateTime] = useState("");
   const [addLimit, setAddLimit] = useState(0);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteSlot, setDeleteSlot] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -122,6 +124,38 @@ const AdminTime = () => {
     setEditSlot(null);
   };
 
+  const handleDeleteClick = (slot) => {
+    setDeleteSlot(slot);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteSlot) {
+      const slotRef = ref(db, `01/time/${deleteSlot.key}`);
+      await import("firebase/database").then(({ remove }) => remove(slotRef));
+      // Refresh local state from DB
+      const timeRef = ref(db, "01/time");
+      const snapshot = await get(timeRef);
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const slots = Object.entries(data).map(([key, value]) => ({
+          key,
+          ...value,
+        }));
+        setTimeSlots(slots);
+      } else {
+        setTimeSlots([]);
+      }
+      setShowDeleteModal(false);
+      setDeleteSlot(null);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteSlot(null);
+  };
+
   return (
     <>
       <Modal show={showModal} onHide={handleModalClose} centered>
@@ -188,6 +222,27 @@ const AdminTime = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal show={showDeleteModal} onHide={handleDeleteCancel} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Delete Time Slot</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to delete this time slot?
+          <br />
+          <strong>{deleteSlot ? formatTimeKey(deleteSlot.key) : ""}</strong>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleDeleteCancel}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleDeleteConfirm}>
+            Delete
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
       <Container className="mt-4">
         <div className="d-flex justify-content-end align-items-center mb-3">
           <Button
@@ -243,6 +298,7 @@ const AdminTime = () => {
                       style={{ cursor: "pointer" }}
                       size={22}
                       title="Delete"
+                      onClick={() => handleDeleteClick(slot)}
                     />
                   </span>
                 </div>
