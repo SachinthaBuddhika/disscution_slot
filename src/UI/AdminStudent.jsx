@@ -133,6 +133,45 @@ const AdminStudent = () => {
         const refToUpdate = ref(db, `01/Student/${oldUsername}`);
         await set(refToUpdate, newData);
       }
+      // --- Time slot student array update logic ---
+      // Remove username from all time slot students arrays
+      const timeRef = ref(db, '01/time');
+      const timeSnap = await get(timeRef);
+      if (timeSnap.exists()) {
+        const timeData = timeSnap.val();
+        for (const [slotKey, slotVal] of Object.entries(timeData)) {
+          const studentsArr = Array.isArray(slotVal.students) ? slotVal.students : [];
+          if (studentsArr.includes(oldUsername)) {
+            // Remove oldUsername from this slot
+            const newArr = studentsArr.filter(u => u !== oldUsername);
+            await set(ref(db, `01/time/${slotKey}/students`), newArr);
+          }
+        }
+        // Now, add username to the correct slot if it matches
+        const matchKey = Object.keys(timeData).find(
+          k => {
+            // Convert slotKey to time string
+            const [y, m, d, h, min] = k.split('_');
+            const slotTime = `${y}.${m}.${d} ${h}:${min}`;
+            return slotTime === combinedTime;
+          }
+        );
+        if (matchKey) {
+          const slot = timeData[matchKey];
+          let studentsArr = Array.isArray(slot.students) ? slot.students : [];
+          if (!studentsArr.includes(newUsername)) {
+            studentsArr = [...studentsArr, newUsername];
+            await set(ref(db, `01/time/${matchKey}/students`), studentsArr);
+          }
+        } else if (combinedTime) {
+          // If no slot exists, optionally create a new slot with this student (optional, comment out if not desired)
+          // const pad = n => n.toString().padStart(2, '0');
+          // const dt = new Date(`${dateForSave.replace(/\./g, '-')}T${editData.time}`);
+          // const key = `${dt.getFullYear()}_${pad(dt.getMonth() + 1)}_${pad(dt.getDate())}_${pad(dt.getHours())}_${pad(dt.getMinutes())}`;
+          // await set(ref(db, `01/time/${key}`), { limit: 1, reserved: 1, students: [newUsername] });
+        }
+      }
+      // --- End time slot update logic ---
     }
     // Reload from DB to ensure UI is up to date
     await reloadStudents();
