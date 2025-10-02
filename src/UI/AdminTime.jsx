@@ -380,7 +380,7 @@ const AdminTime = () => {
                         <path d="M15.854 5.146a.5.5 0 0 0-.708 0l-3 3a.5.5 0 0 0 .708.708l2.646-2.647 2.646 2.647a.5.5 0 0 0 .708-.708l-3-3z" />
                         <path d="M1 14s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H1zm7-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
                       </svg>
-                      Reserved: {slot.reserved}
+                      Reserved: {slot.students ? slot.students.length : 0}
                     </span>
                   </div>
                   <div
