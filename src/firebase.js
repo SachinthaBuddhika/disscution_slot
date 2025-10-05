@@ -8,14 +8,14 @@ import { getDatabase } from "firebase/database";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyChmC8Y7TCKcrE3UrTeVRrhBlAiEGKs-Ow",
-  authDomain: "discussion-slot-scheduler.firebaseapp.com",
-  databaseURL: "https://discussion-slot-scheduler-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "discussion-slot-scheduler",
-  storageBucket: "discussion-slot-scheduler.firebasestorage.app",
-  messagingSenderId: "658934009789",
-  appId: "1:658934009789:web:24534b80b198ad0c924cd4",
-  measurementId: "G-KCT9MFR0C5"
+  apiKey: "AIzaSyCqiEZ1n_UdmDn2PPEEizkw5BommJMRHMM",
+  authDomain: "anatomy-sgd-4a703.firebaseapp.com",
+  databaseURL: "https://anatomy-sgd-4a703-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "anatomy-sgd-4a703",
+  storageBucket: "anatomy-sgd-4a703.firebasestorage.app",
+  messagingSenderId: "274607992817",
+  appId: "1:274607992817:web:1a47d43edc2e7aab645e50",
+  measurementId: "G-K570C59QGG"
 };
 
 // Initialize Firebase
