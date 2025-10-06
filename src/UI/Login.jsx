@@ -43,7 +43,7 @@ const Login = ({ onLogin, statusMessage, loading }) => {
     <Container className="d-flex align-items-center justify-content-center min-vh-100" style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
       <Card style={{ minWidth: 380, maxWidth: 420 }} className="shadow-lg p-4 rounded-4">
         <Card.Body>
-          <h2 className="text-center mb-4 fw-bold text-primary">Discussion Sign-In</h2>
+          <h2 className="text-center mb-4 fw-bold text-primary">Anatomy SGD</h2>
           <p className="text-center text-muted mb-4">Enter your <b>Student ID</b> to access the view.</p>
           {statusMessage?.text && (
             <Alert variant={statusMessage.type === 'error' ? 'danger' : statusMessage.type === 'success' ? 'success' : 'info'} className="text-center">
