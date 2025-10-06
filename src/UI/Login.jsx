@@ -66,7 +66,7 @@ const Login = ({ onLogin, statusMessage, loading }) => {
             <Form.Group className="mb-4" controlId="password">
               <Form.Control
                 type="password"
-                placeholder="Password (required for Admin)"
+                placeholder="Password (No password; for students)"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 className="fw-semibold py-3"

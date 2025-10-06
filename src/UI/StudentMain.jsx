@@ -196,18 +196,45 @@ const StudentMain = () => {
                         Remaining: {slot.limit - (slot.students ? slot.students.length : 0)}
                       </span>
                       {pickedSlotKey ? (
-                        isPicked ? (
-                          <span className="btn btn-success fw-bold px-5 py-3 shadow pick-time-btn w-100 w-sm-auto mt-2 mt-sm-0" style={{ borderRadius: 24, fontSize: 20, pointerEvents: 'none', opacity: 0.95 }}>
-                            <i className="bi bi-check-circle me-2"></i>Your Selected Time
-                          </span>
-                        ) : null
+                        // isPicked ? (
+                        //   <span className="btn btn-success fw-bold px-5 py-3 shadow pick-time-btn w-100 w-sm-auto mt-2 mt-sm-0" style={{ borderRadius: 24, fontSize: 20, pointerEvents: 'none', opacity: 0.95 }}>
+                        //     <i className="bi bi-check-circle me-2"></i>Your Selected Time
+                        //   </span>
+                        // ) : null
+                        null
                       ) : (
                         !isFull && (
-                          <button className="btn btn-lg fw-bold px-5 py-3 shadow pick-time-btn w-100 w-sm-auto mt-2 mt-sm-0" style={{ borderRadius: 24, fontSize: 20, background: 'linear-gradient(90deg, #6366f1 60%, #818cf8 100%)', color: '#fff', border: 'none', boxShadow: '0 2px 12px #6366f155', letterSpacing: 1, transition: 'background 0.2s', minWidth: 160, whiteSpace: 'nowrap' }} onClick={() => handlePickTime(slot)}>
-                          <i className="bi bi-check-circle me-2"></i>Pick Time
-                        </button>
+                          <button className="btn btn-lg fw-bold px-5 py-3 shadow pick-time-btn w-100 w-sm-auto mt-2 mt-sm-0" style={{ borderRadius: 24, fontSize: 20, background: 'linear-gradient(90deg, #f16363ff 60%, #f88181ff 100%)', color: '#fff', border: 'none', boxShadow: '0 2px 12px #6366f155', letterSpacing: 1, transition: 'background 0.2s', minWidth: 160, whiteSpace: 'nowrap' }} onClick={() => handlePickTime(slot)}>
+                            <i className="bi bi-check-circle me-2"></i>Pick The Time
+                          </button>
                         )
                       )}
+                    </div>
+                    {/* Student list (scrollable) - visible to students similar to AdminTime */}
+                    <div className="w-100 mt-3" style={{ minWidth: 0 }}>
+                      <div className="d-flex flex-row flex-nowrap overflow-auto" style={{ gap: 12 }}>
+                        {slot.students && slot.students.length > 0 ? (
+                          slot.students.map((student) => (
+                            <span
+                              key={student}
+                              className={`badge ${student === username ? 'bg-success text-white' : 'bg-primary bg-opacity-75 text-white'}`}
+                              style={{
+                                fontSize: 15,
+                                borderRadius: 12,
+                                boxShadow: '0 1px 4px #6366f133',
+                                padding: '8px 12px',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              {student === username ? `${student} (You)` : student}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="badge bg-secondary bg-opacity-50 px-3 py-2" style={{ fontSize: 15, borderRadius: 12 }}>
+                            No students
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
